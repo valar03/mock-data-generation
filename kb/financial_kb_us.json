@@ -1,0 +1,56 @@
+{
+  "text": {
+    "aliases": [
+      "STATUS_ID"
+    ],
+    "data_type": "integer",
+    "enum_values": [
+      "24.000.0056"
+    ]
+  },
+  "status_flag": {
+    "aliases": [
+      "END_STATUS"
+    ],
+    "data_type": "boolean"
+  },
+  "text_1": {
+    "aliases": [
+      "text_1"
+    ],
+    "data_type": "enum",
+    "enum_values": [
+      "Document Received"
+    ]
+  },
+  "account_number": {
+    "aliases": [
+      "col_0"
+    ],
+    "data_type": "integer"
+  },
+  "transaction_id": {
+    "aliases": [
+      "col_1"
+    ],
+    "data_type": "enum",
+    "enum_values": [
+      "1234QWE"
+    ]
+  },
+  "branch_code": {
+    "aliases": [
+      "col_4"
+    ],
+    "data_type": "enum",
+    "enum_values": [
+      "ABCD ST"
+    ]
+  },
+  "transaction_id_2": {
+    "aliases": [
+      "transaction_id_2"
+    ],
+    "data_type": "integer"
+  }
+}
