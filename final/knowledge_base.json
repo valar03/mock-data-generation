@@ -1,0 +1,68 @@
+{
+  "columns": {
+    "STATUS_ID": [
+      "STATUS_ID"
+    ],
+    "STATUS_NAME": [
+      "STATUS_NAME"
+    ],
+    "END_STATUS": [
+      "END_STATUS"
+    ],
+    "ACCOUNT_NUMBER": [
+      "ACCOUNT_NUMBER"
+    ]
+  },
+  "patterns": {
+    "STATUS_ID": [
+      "int"
+    ],
+    "STATUS_NAME": [
+      "categorical"
+    ],
+    "END_STATUS": [
+      "boolean"
+    ],
+    "ACCOUNT_NUMBER": [
+      "int"
+    ]
+  },
+  "value_sets": {
+    "STATUS_ID": {
+      "1": 4,
+      "2": 4
+    },
+    "STATUS_NAME": {
+      "Document Received": 8
+    },
+    "END_STATUS": {
+      "N": 4,
+      "Y": 4
+    },
+    "ACCOUNT_NUMBER": {
+      "10001": 4,
+      "12345": 4
+    }
+  },
+  "stats": {
+    "STATUS_ID": {
+      "min": 1.0,
+      "max": 2.0,
+      "mean": 1.5,
+      "std": 0.7071067811865476,
+      "max_length": 1
+    },
+    "ACCOUNT_NUMBER": {
+      "min": 10001.0,
+      "max": 12345.0,
+      "mean": 11173.0,
+      "std": 1657.4582951012674,
+      "max_length": 5
+    }
+  },
+  "uniques": [
+    "STATUS_ID",
+    "ACCOUNT_NUMBER",
+    "END_STATUS"
+  ]
+}
