@@ -1,3 +1,3 @@
-STATUS_ID|STATUS_NAME|END_STATUS
-1|Document Received|N
-2|Document Received|Y
+STATUS_ID|STATUS_NAME|END_STATUS|ACCOUNT_NUMBER
+1|Document Received|N|10001
+2|Document Received|Y|12345

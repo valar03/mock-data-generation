@@ -1,0 +1,86 @@
+{
+  "columns": {
+    "STATUS_ID": [
+      "STATUS_ID"
+    ],
+    "STATUS_NAME": [
+      "STATUS_NAME"
+    ],
+    "END_STATUS": [
+      "END_STATUS"
+    ],
+    "ACCOUNT_NO": [
+      "ACCOUNT_NO"
+    ],
+    "ACCOUNT_NUMBER": [
+      "ACCOUNT_NUMBER"
+    ]
+  },
+  "patterns": {
+    "STATUS_ID": [
+      "int"
+    ],
+    "STATUS_NAME": [
+      "categorical"
+    ],
+    "END_STATUS": [
+      "boolean"
+    ],
+    "ACCOUNT_NO": [
+      "int"
+    ],
+    "ACCOUNT_NUMBER": [
+      "int"
+    ]
+  },
+  "value_sets": {
+    "STATUS_ID": {
+      "1": 6,
+      "2": 6
+    },
+    "STATUS_NAME": {
+      "Document Received": 12
+    },
+    "END_STATUS": {
+      "N": 6,
+      "Y": 6
+    },
+    "ACCOUNT_NO": {
+      "10001": 2,
+      "12345": 2
+    },
+    "ACCOUNT_NUMBER": {
+      "10001": 1,
+      "12345": 1
+    }
+  },
+  "stats": {
+    "STATUS_ID": {
+      "min": 1.0,
+      "max": 2.0,
+      "mean": 1.5,
+      "std": 0.7071067811865476,
+      "max_length": 1
+    },
+    "ACCOUNT_NO": {
+      "min": 10001.0,
+      "max": 12345.0,
+      "mean": 11173.0,
+      "std": 1657.4582951012674,
+      "max_length": 5
+    },
+    "ACCOUNT_NUMBER": {
+      "min": 10001.0,
+      "max": 12345.0,
+      "mean": 11173.0,
+      "std": 1657.4582951012674,
+      "max_length": 5
+    }
+  },
+  "uniques": [
+    "ACCOUNT_NUMBER",
+    "END_STATUS",
+    "STATUS_ID",
+    "ACCOUNT_NO"
+  ]
+}
