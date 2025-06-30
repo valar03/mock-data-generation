@@ -192,17 +192,34 @@ class MockGenerator:
 
     def parse_file(self, filepath):
         with open(filepath, "r") as f:
-            lines = f.readlines()
+            lines = [line.strip() for line in f if line.strip()]
+
         delim = "," if "," in lines[0] else "|" if "|" in lines[0] else None
-        if not delim: return None, None
-        first = lines[0].strip().split(delim)
-        has_header = any(re.match(r'[A-Za-z_]+', cell) for cell in first)
-        if has_header:
-            data = [line.strip().split(delim) for line in lines[1:] if delim in line]
-            return first, data
+        if not delim:
+            # Attempt space-based fallback
+            lines = [re.split(r'\s{2,}', line) for line in lines]
+            delim = "SPACE"
+
+        if delim != "SPACE":
+            first = lines[0].split(delim)
+            second_row = lines[1].split(delim) if len(lines) > 1 else []
+            header_likely = all(re.match(r"[A-Za-z_]{2,}", cell) for cell in first)
+
+            if header_likely:
+                columns = first
+                data = [line.split(delim) for line in lines[1:]]
+                return columns, data
+            else:
+                data = [line.split(delim) for line in lines]
+                return [], data
+
+        # SPACE-delimited fallback
+        header_likely = all(re.match(r"[A-Za-z_]{2,}", val) for val in lines[0])
+        if header_likely:
+            return lines[0], lines[1:]
         else:
-            data = [line.strip().split(delim) for line in lines if delim in line]
-            return [], data
+            return [], lines
+
 
     def infer_columns(self, data_rows):
         guessed = []
@@ -264,11 +281,19 @@ def main(input_file, output_file, rows, genai_url, preset_id):
     genai = GenAIColumnInferer(kb, genai_url, preset_id)
     gen = MockGenerator(kb, genai, rows)
     cols, data = gen.parse_file(input_file)
+
     if not data:
-        print("[❌] Failed to parse input.")
+        print("[❌] Failed to parse input file. Check format or delimiter.")
         return
+
+    if cols:
+        print("[ℹ️] Header detected. Using KB only.")
+    else:
+        print("[ℹ️] No header detected. Using GenAI + KB for column inference.")
+
     canonical_cols = gen.learn(cols, data)
     mock = gen.generate(canonical_cols)
     pd.DataFrame(mock)[canonical_cols].to_csv(output_file, index=False)
     kb.save()
     print(f"[✅] {rows} mock rows written to {output_file}")
+
