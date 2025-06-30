@@ -29,19 +29,19 @@
   },
   "value_sets": {
     "STATUS_ID": {
-      "1": 4,
-      "2": 4
+      "1": 6,
+      "2": 6
     },
     "STATUS_NAME": {
-      "Document Received": 8
+      "Document Received": 12
     },
     "END_STATUS": {
-      "N": 4,
-      "Y": 4
+      "N": 6,
+      "Y": 6
     },
     "ACCOUNT_NUMBER": {
-      "10001": 4,
-      "12345": 4
+      "10001": 6,
+      "12345": 6
     }
   },
   "stats": {
@@ -61,8 +61,8 @@
     }
   },
   "uniques": [
-    "STATUS_ID",
     "ACCOUNT_NUMBER",
-    "END_STATUS"
+    "END_STATUS",
+    "STATUS_ID"
   ]
 }

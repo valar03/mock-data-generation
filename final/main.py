@@ -99,7 +99,9 @@ def detect_delim_and_header(filepath):
     return delim, header, lines
 
 # -------- Main --------
-def main():
+def run_pipeline(input_file, output_file, record_count):
+    if not os.path.exists(input_file):
+        raise FileNotFoundError(f"Input file {input_file} does not exist.")
     filepath = "../sample1.dat"
     delim, has_header, lines = detect_delim_and_header(filepath)
     if delim is None and not has_header:
@@ -129,8 +131,6 @@ def main():
         kb.save()
         print("✅ Knowledge Base updated using GenAI-inferred headers.")
 
-    record_count = 500
-    output_file = "mock_output.csv"
     print(f"🎯 Generating {record_count} mock records based on resolved columns.")
     generator = MockDataGenerator(kb, record_count)
     mock_data = generator.generate(final_headers)
@@ -139,4 +139,4 @@ def main():
     print(f"✅ Mock data written to {output_file}")
 
 if __name__ == "__main__":
-    main()
+    run_pipeline("../sample1.dat", "mock_output_final.csv", 500)
