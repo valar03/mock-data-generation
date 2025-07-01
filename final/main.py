@@ -88,7 +88,8 @@ class PatternEngine:
 def detect_delim_and_header(filepath):
     with open(filepath, "r") as f:
         lines = [line.strip() for line in f if line.strip()]
-    if len(lines) < 1: return None, False, []
+    if not lines:
+        return None, False, []
 
     # Detect delimiter
     test_line = lines[0]
@@ -101,13 +102,15 @@ def detect_delim_and_header(filepath):
     else:
         delim = None  # fallback to whitespace
 
-    # Tokenize lines
+    # Tokenize
     splitter = lambda l: l.split(delim) if delim else re.split(r"\s{2,}|\t+", l.strip())
     split_lines = [splitter(l) for l in lines]
 
-    if len(split_lines) < 2:
+    # --- NEW: Handle single-line file gracefully ---
+    if len(split_lines) == 1:
         return delim, False, split_lines
 
+    # Heuristic check for header
     first, second = split_lines[0], split_lines[1]
     is_text = lambda x: bool(re.fullmatch(r"[A-Za-z_]+", x))
     is_num = lambda x: bool(re.fullmatch(r"\d+(\.\d+)?", x))
