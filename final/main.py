@@ -84,19 +84,40 @@ class PatternEngine:
         if all(v.lower() in ["yes", "no", "true", "false", "y", "n"] for v in values): return ["boolean"]
         return ["categorical"] if len(set(values)) < 20 else ["text"]
 
-# -------- Delimiter + Header Detection --------
+# -------- Delimiter + Header Detection -------
 def detect_delim_and_header(filepath):
     with open(filepath, "r") as f:
         lines = [line.strip() for line in f if line.strip()]
-    if len(lines) < 2: return None, False, []
+    if len(lines) < 1: return None, False, []
 
-    delim = "," if "," in lines[0] else "|" if "|" in lines[0] else None
-    tokens = lambda l: l.split(delim) if delim else re.split(r"\s{2,}", l)
-    row1, row2 = tokens(lines[0]), tokens(lines[1])
+    # Detect delimiter
+    test_line = lines[0]
+    if "," in test_line:
+        delim = ","
+    elif "|" in test_line:
+        delim = "|"
+    elif "\t" in test_line:
+        delim = "\t"
+    else:
+        delim = None  # fallback to whitespace
+
+    # Tokenize lines
+    splitter = lambda l: l.split(delim) if delim else re.split(r"\s{2,}|\t+", l.strip())
+    split_lines = [splitter(l) for l in lines]
+
+    if len(split_lines) < 2:
+        return delim, False, split_lines
+
+    first, second = split_lines[0], split_lines[1]
     is_text = lambda x: bool(re.fullmatch(r"[A-Za-z_]+", x))
     is_num = lambda x: bool(re.fullmatch(r"\d+(\.\d+)?", x))
-    header = sum(is_text(c) for c in row1) / len(row1) > 0.5 and sum(is_num(c) for c in row2) / len(row2) > 0.3
-    return delim, header, lines
+
+    header_confidence = sum(is_text(c) for c in first) / len(first) > 0.5
+    row_confidence = sum(is_num(c) for c in second) / len(second) > 0.3
+
+    has_header = header_confidence and row_confidence
+    return delim, has_header, split_lines
+    
 
 # -------- Main --------
 def run_pipeline(input_file, output_file, record_count):
