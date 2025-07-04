@@ -30,6 +30,16 @@ def generate_mock_data(layout_file: str = "layout.csv", instruction_file: str = 
     return []  # Copilot will generate a list of records like: [{"name": "Alice", "age": 30}, ...]
 
 
+Please populate the generate_mock_data() tool. It should:
+1. Read the layout.csv for column names, types, and constraints.
+2. Read instructions.txt for additional rules.
+3. Use the Faker library or hardcoded logic to generate 50 mock records accordingly.
+
+Return a list of dictionaries like:
+[{"name": "Alice", "age": 32, "email": "alice@example.com"}, ...]
+
+Don't leave return [] empty — return actual mock data using parsed schema.
+
 @mcp.tool()
 def save_to_csv(data: list[dict[str, Any]], output_file: str = "mock_output.csv") -> str:
     """
