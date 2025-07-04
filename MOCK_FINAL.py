@@ -154,3 +154,36 @@ Use it to generate a JSON mapping of column names to Faker methods.
 Then call store_mapping with that JSON.
 Then call generate_mock to generate mock data and finally call save_to_csv to store in a CSV file.
 
+
+from mcp.server.fastmcp import FastMCP
+import httpx
+
+mcp = FastMCP("mockgen")
+
+API_BASE = "http://localhost:5000"
+
+async def post(endpoint, data):
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(f"{API_BASE}{endpoint}", json=data, timeout=10.0)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            return {"error": str(e)}
+
+@mcp.tool()
+async def upload_files():
+    """
+    Upload layout and instructions from layout.csv and instructions.txt to the backend.
+    """
+    try:
+        with open("layout.csv", "r") as f1, open("instructions.txt", "r") as f2:
+            layout = f1.read()
+            instructions = f2.read()
+        result = await post("/upload_files", {
+            "layout": layout,
+            "instructions": instructions
+        })
+        return result.get("message", "Upload completed.")
+    except Exception as e:
+        return f"Error uploading files: {e}"
