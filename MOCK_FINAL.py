@@ -1,76 +1,89 @@
 import csv
+import json
 import pandas as pd
-from typing import Any
+from faker import Faker
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("mock-data")
+fake = Faker()
+mcp = FastMCP("mockgen")
 
-@mcp.tool()
-def generate_mock_data(layout_file: str = "layout.csv", instruction_file: str = "instructions.txt") -> list[dict[str, Any]]:
-    """
-    Generate mock data based on layout and instructions.
-
-    Arguments:
-        layout_file: Path to layout CSV (e.g., column_name, data_type, constraints)
-        instruction_file: Path to natural language instructions
-
-    Returns:
-        A list of dictionaries representing mock records (ready to save as CSV)
-    """
-    layout = []
-    with open(layout_file, "r") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            layout.append(row)
-
-    with open(instruction_file, "r") as f:
+def read_inputs():
+    with open("layout.csv") as f:
+        layout = f.read()
+    with open("instructions.txt") as f:
         instructions = f.read()
-
-    # 👇 Copilot will fill logic here using layout + instructions
-    return []  # Copilot will generate a list of records like: [{"name": "Alice", "age": 30}, ...]
-
-
-Please populate the generate_mock_data() tool. It should:
-1. Read the layout.csv for column names, types, and constraints.
-2. Read instructions.txt for additional rules.
-3. Use the Faker library or hardcoded logic to generate 50 mock records accordingly.
-
-Return a list of dictionaries like:
-[{"name": "Alice", "age": 32, "email": "alice@example.com"}, ...]
-
-Don't leave return [] empty — return actual mock data using parsed schema.
+    return layout, instructions
 
 @mcp.tool()
-def save_to_csv(data: list[dict[str, Any]], output_file: str = "mock_output.csv") -> str:
+def generate_mock_data_using_copilot(layout_text: str, instruction_text: str, num_rows: int = 100) -> list[dict]:
     """
-    Save mock data to a CSV file.
+    Analyze layout.csv and instructions.txt and:
+    1. Infer appropriate Faker methods for each column
+    2. Generate mock data using Faker
+    3. Return a list of JSON records
 
-    Arguments:
-        data: List of mock records (from generate_mock_data)
-        output_file: Output CSV file name
-
-    Returns:
-        Confirmation message on success
+    Copilot should:
+    - Parse the layout and instructions
+    - Identify the right faker methods like 'name', 'email', 'pyfloat', 'phone_number', etc.
+    - Send back a JSON mapping: {"name": "name", "email": "email", "salary": "pyfloat"}
+    - The code below will use that mapping to generate mock data.
     """
+    try:
+        # Prompt expected Copilot to return a mapping
+        mapping = {
+            "full_name": "name",
+            "email_id": "email",
+            "phone_number": "phone_number",
+            "dob": "date_of_birth",
+            "salary": "pyfloat"
+        }
+
+        data = []
+        for _ in range(num_rows):
+            row = {}
+            for col, method in mapping.items():
+                try:
+                    row[col] = getattr(fake, method)()
+                except AttributeError:
+                    row[col] = f"[Invalid faker method: {method}]"
+            data.append(row)
+        return data
+    except Exception as e:
+        return [{"error": str(e)}]
+
+def save_to_csv(data: list[dict], filename="mock_output.csv"):
     if not data:
-        return "No data to save."
-    
+        print("❌ No data to write")
+        return
     df = pd.DataFrame(data)
-    df.to_csv(output_file, index=False)
-    return f"✅ Mock data saved to {output_file}"
+    df.to_csv(filename, index=False)
+    print(f"✅ Saved to {filename}")
 
+def main():
+    layout, instructions = read_inputs()
+    print("📨 Asking Copilot to generate mock data...")
+
+    records = generate_mock_data_using_copilot(layout, instructions, num_rows=100)
+
+    if not records or isinstance(records, dict) and "error" in records:
+        print("❌ Failed to generate mock data")
+        return
+
+    save_to_csv(records)
 
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    mcp.run(transport="stdio")  # Needed for Copilot MCP agent
+    # main()  ← uncomment this to test standalone without MCP
 
-Please populate the generate_mock_data() tool. It should:
-1. Read the layout.csv for column names, types, and constraints.
-2. Read instructions.txt for additional rules.
-3. Use the Faker library or hardcoded logic to generate 50 mock records accordingly.
-
-Return a list of dictionaries like:
-[{"name": "Alice", "age": 32, "email": "alice@example.com"}, ...]
-
-Don't leave return [] empty — return actual mock data using parsed schema.
-
-Please populate the generate_mock_data() function. It should read layout.csv for schema and generate 50 mock records using Faker. Return a list of dicts.
+You are given layout.csv and instructions.txt. Your task is:
+1. Identify the most appropriate Faker method for each field in layout.csv.
+2. Return a Python dictionary (JSON-style) where key = field name and value = faker method name.
+Example:
+{
+  "full_name": "name",
+  "email_id": "email",
+  "phone_number": "phone_number",
+  "dob": "date_of_birth",
+  "salary": "pyfloat"
+}
+Don't include any extra explanation — just the mapping dictionary.
