@@ -87,3 +87,16 @@ Example:
   "salary": "pyfloat"
 }
 Don't include any extra explanation — just the mapping dictionary.
+
+
+Given the layout of a dataset below and a description of data generation rules, return a Python dictionary where:
+- Each key is a column name
+- Each value is the most suitable Faker method name (like 'name', 'email', 'pyint', 'pyfloat', 'date_of_birth', etc.)
+
+Return only a valid JSON dictionary.
+
+Here is the layout:
+<insert content of layout.csv here>
+
+Here are the rules:
+<insert content of instructions.txt here>
