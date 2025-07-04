@@ -1,189 +1,128 @@
-# app.py
-from flask import Flask, request, jsonify
-import pandas as pd
-from faker import Faker
-import json
-
-app = Flask(__name__)
-
-faker = Faker()
-
-# Global storage
-layout_content = ""
-instructions_content = ""
-faker_mapping = {}
-mock_data = []
-
-@app.route("/upload", methods=["POST"])
-def upload_files():
-    global layout_content, instructions_content
-    layout_content = request.form.get("layout", "")
-    instructions_content = request.form.get("instructions", "")
-    return jsonify({"message": "Files uploaded successfully"}), 200
-
-@app.route("/prompt_payload", methods=["GET"])
-def get_prompt_payload():
-    if not layout_content or not instructions_content:
-        return jsonify({"error": "Layout or instructions missing"}), 400
-
-    prompt = f"""
-You are given layout and instructions for generating mock data.
-
-Layout:
-{layout_content}
-
-Instructions:
-{instructions_content}
-
-Task:
-Return a JSON mapping of column names to faker fields (e.g., name, email, pyint, date_of_birth).
-
-Only return valid JSON. Do NOT include explanations.
-"""
-    return jsonify({
-        "systemInstruction": "You are a helpful assistant that generates Faker field mappings.",
-        "query": prompt
-    })
-
-@app.route("/store_mapping", methods=["POST"])
-def store_mapping():
-    global faker_mapping
-    try:
-        mapping = request.json.get("mapping")
-        faker_mapping = json.loads(mapping) if isinstance(mapping, str) else mapping
-        return jsonify({"message": "Mapping stored", "faker_mapping": faker_mapping})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
-@app.route("/generate", methods=["GET"])
-def generate_mock_data():
-    global mock_data
-    try:
-        n = int(request.args.get("n", 10))
-        mock_data = []
-        for _ in range(n):
-            row = {}
-            for col, method in faker_mapping.items():
-                try:
-                    val = getattr(faker, method)() if hasattr(faker, method) else f"<invalid:{method}>"
-                    row[col] = val
-                except Exception:
-                    row[col] = "<error>"
-            mock_data.append(row)
-        return jsonify(mock_data)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/save", methods=["GET"])
-def save_to_csv():
-    global mock_data
-    try:
-        if not mock_data:
-            return jsonify({"error": "No data to save"}), 400
-        df = pd.DataFrame(mock_data)
-        df.to_csv("mock_output.csv", index=False)
-        return jsonify({"message": "Mock data saved to mock_output.csv"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-if __name__ == "__main__":
-    app.run(port=5000)
-
-
-################
-
-# main.py
-from mcp.server.fastmcp import FastMCP
+from typing import Any
 import httpx
-import json
-
-mcp = FastMCP("copilot-mockgen")
-
-API = "http://localhost:5000"
-
-async def post(endpoint, data=None):
-    async with httpx.AsyncClient() as client:
-        return await client.post(f"{API}{endpoint}", json=data or {})
-
-async def get(endpoint):
-    async with httpx.AsyncClient() as client:
-        return await client.get(f"{API}{endpoint}")
-
-@mcp.tool()
-async def upload(layout: str, instructions: str) -> str:
-    """Upload layout and instructions."""
-    async with httpx.AsyncClient() as client:
-        res = await client.post(f"{API}/upload", data={"layout": layout, "instructions": instructions})
-        return res.text
-
-@mcp.tool()
-async def get_prompt() -> dict:
-    """Get prompt payload for Copilot."""
-    res = await get("/prompt_payload")
-    return res.json()
-
-@mcp.tool()
-async def store_mapping(mapping: str) -> str:
-    """Store Copilot-generated mapping JSON."""
-    try:
-        json.loads(mapping)  # validate first
-        res = await post("/store_mapping", {"mapping": mapping})
-        return res.text
-    except json.JSONDecodeError:
-        return "❌ Invalid JSON format."
-
-@mcp.tool()
-async def generate_mock(n: int = 10) -> list[dict]:
-    """Generate mock data."""
-    res = await get(f"/generate?n={n}")
-    return res.json()
-
-@mcp.tool()
-async def save_to_csv() -> str:
-    """Save generated mock data to CSV."""
-    res = await get("/save")
-    return res.text
-
-if __name__ == "__main__":
-    mcp.run()
-
-
-##################
-Call get_prompt to get the prompt.
-Use it to generate a JSON mapping of column names to Faker methods.
-Then call store_mapping with that JSON.
-Then call generate_mock to generate mock data and finally call save_to_csv to store in a CSV file.
-
-
 from mcp.server.fastmcp import FastMCP
-import httpx
 
 mcp = FastMCP("mockgen")
-
 API_BASE = "http://localhost:5000"
 
-async def post(endpoint, data):
+# ------------ Flask API Calls ------------
+
+async def post(endpoint: str, data: dict = {}) -> dict[str, Any]:
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.post(f"{API_BASE}{endpoint}", json=data, timeout=10.0)
+            response = await client.post(f"{API_BASE}{endpoint}", json=data)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             return {"error": str(e)}
 
+# ------------ MCP Tools ------------
+
 @mcp.tool()
-async def upload_files():
-    """
-    Upload layout and instructions from layout.csv and instructions.txt to the backend.
-    """
+async def upload_files() -> str:
+    """Upload layout.csv and instructions.txt to backend memory."""
     try:
-        with open("layout.csv", "r") as f1, open("instructions.txt", "r") as f2:
-            layout = f1.read()
-            instructions = f2.read()
-        result = await post("/upload_files", {
-            "layout": layout,
-            "instructions": instructions
-        })
-        return result.get("message", "Upload completed.")
+        with open("layout.csv") as lf, open("instructions.txt") as inf:
+            layout = lf.read()
+            instructions = inf.read()
+        response = await post("/upload", {"layout": layout, "instructions": instructions})
+        return response["message"]
     except Exception as e:
-        return f"Error uploading files: {e}"
+        return f"❌ Error uploading files: {str(e)}"
+
+@mcp.tool()
+async def generate_data(records: int = 500) -> str:
+    """Generate mock data using the stored mapping."""
+    response = await post("/generate", {"records": records})
+    return response.get("message", "❌ Generation failed")
+
+@mcp.tool()
+async def export_csv(filename: str = "mock_output.csv") -> str:
+    """Export the generated data to CSV."""
+    response = await post("/export", {"filename": filename})
+    return response.get("message", "❌ Export failed")
+
+# ------------ MCP Expect Hook ------------
+
+@mcp.expect(schema={"type": "object", "patternProperties": {".*": {"type": "string"}}})
+async def auto_store_mapping(data: dict[str, Any]):
+    """Automatically store mapping when a valid JSON mapping is returned by Copilot."""
+    await post("/store_mapping", {"mapping": data})
+    print("✅ Detected and stored Faker mapping automatically.")
+
+# ------------ Run Server ------------
+
+if __name__ == "__main__":
+    mcp.run(transport="stdio")
+
+
+
+######
+
+from flask import Flask, request, jsonify
+from faker import Faker
+import pandas as pd
+
+app = Flask(__name__)
+faker = Faker()
+
+# -------- In-memory Store --------
+memory = {
+    "layout": "",
+    "instructions": "",
+    "mapping": {},
+    "mock_data": []
+}
+
+@app.route("/upload", methods=["POST"])
+def upload():
+    memory["layout"] = request.json.get("layout", "")
+    memory["instructions"] = request.json.get("instructions", "")
+    return jsonify({"message": "✅ Layout and instructions uploaded."})
+
+@app.route("/store_mapping", methods=["POST"])
+def store_mapping():
+    mapping = request.json.get("mapping", {})
+    if not isinstance(mapping, dict):
+        return jsonify({"message": "❌ Invalid mapping format."}), 400
+    memory["mapping"] = mapping
+    return jsonify({"message": f"✅ Mapping stored: {mapping}"})
+
+@app.route("/generate", methods=["POST"])
+def generate():
+    mapping = memory.get("mapping", {})
+    record_count = request.json.get("records", 500)
+    if not mapping:
+        return jsonify({"message": "❌ No mapping available to generate data."})
+    
+    try:
+        data = []
+        for _ in range(record_count):
+            row = {}
+            for col, faker_fn in mapping.items():
+                if hasattr(faker, faker_fn):
+                    row[col] = getattr(faker, faker_fn)()
+                else:
+                    row[col] = f"<missing:{faker_fn}>"
+            data.append(row)
+        memory["mock_data"] = data
+        return jsonify({"message": f"✅ Generated {record_count} records."})
+    except Exception as e:
+        return jsonify({"message": f"❌ Error generating data: {str(e)}"})
+
+@app.route("/export", methods=["POST"])
+def export():
+    filename = request.json.get("filename", "mock_output.csv")
+    try:
+        df = pd.DataFrame(memory["mock_data"])
+        df.to_csv(filename, index=False)
+        return jsonify({"message": f"✅ Mock data exported to {filename}."})
+    except Exception as e:
+        return jsonify({"message": f"❌ Export error: {str(e)}"})
+
+if __name__ == "__main__":
+    app.run(port=5000)
+
+
+$#######
+
