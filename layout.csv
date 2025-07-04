@@ -1,0 +1,6 @@
+column_name,data_type,is_unique,example_value
+customer_id,int,yes,1001
+customer_name,string,no,John Doe
+email,string,no,john@example.com
+account_balance,float,no,2500.75
+created_at,date,no,2023-05-01
