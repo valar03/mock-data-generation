@@ -1,104 +1,156 @@
-import csv
-import json
-from typing import Any
+# app.py
+from flask import Flask, request, jsonify
+import pandas as pd
 from faker import Faker
-from mcp.server.fastmcp import FastMCP
+import json
 
-# Initialize FastMCP server
-mcp = FastMCP("mockdata-gen")
-
-# Global variables
-layout_text = ""
-instructions_text = ""
-faker_field_map = {}
-mock_data = []
+app = Flask(__name__)
 
 faker = Faker()
 
-# ---------------- MCP Tools ----------------
+# Global storage
+layout_content = ""
+instructions_content = ""
+faker_mapping = {}
+mock_data = []
 
-@mcp.tool()
-def load_layout_and_instructions() -> str:
-    """
-    Reads layout.csv and instructions.txt and stores them in global memory.
-    """
-    global layout_text, instructions_text
-    with open("layout.csv", "r") as f:
-        layout_text = f.read()
-    with open("instructions.txt", "r") as f:
-        instructions_text = f.read()
-    return "✅ Loaded layout and instructions."
+@app.route("/upload", methods=["POST"])
+def upload_files():
+    global layout_content, instructions_content
+    layout_content = request.form.get("layout", "")
+    instructions_content = request.form.get("instructions", "")
+    return jsonify({"message": "Files uploaded successfully"}), 200
 
-@mcp.tool()
-def identify_faker_fields() -> str:
-    """
-    Copilot will infer appropriate faker fields for each column.
-    Prompt Copilot with: 'identify faker fields'
-    """
-    global layout_text, instructions_text
-    return f"""🎯 Prompt:
-Given the layout of a dataset below and a description of data generation rules, return a Python dictionary where:
-- Each key is a column name
-- Each value is the most suitable Faker method name (like 'name', 'email', 'pyint', 'pyfloat', 'date_of_birth', etc.)
-Return only a valid JSON dictionary.
+@app.route("/prompt_payload", methods=["GET"])
+def get_prompt_payload():
+    if not layout_content or not instructions_content:
+        return jsonify({"error": "Layout or instructions missing"}), 400
 
-Here is the layout:
-{layout_text}
+    prompt = f"""
+You are given layout and instructions for generating mock data.
 
-Here are the rules:
-{instructions_text}
+Layout:
+{layout_content}
+
+Instructions:
+{instructions_content}
+
+Task:
+Return a JSON mapping of column names to faker fields (e.g., name, email, pyint, date_of_birth).
+
+Only return valid JSON. Do NOT include explanations.
 """
+    return jsonify({
+        "systemInstruction": "You are a helpful assistant that generates Faker field mappings.",
+        "query": prompt
+    })
 
-@mcp.tool()
-def store_faker_mapping(mapping: Any) -> str:
-    """
-    Accepts either a JSON string or a dictionary from Copilot and stores it.
-    """
-    global faker_field_map
+@app.route("/store_mapping", methods=["POST"])
+def store_mapping():
+    global faker_mapping
     try:
-        if isinstance(mapping, str):
-            mapping = json.loads(mapping)
-        elif not isinstance(mapping, dict):
-            return "❌ Please provide a valid dictionary or JSON string."
-        faker_field_map = mapping
-        return f"✅ Stored faker mapping for {len(faker_field_map)} columns."
+        mapping = request.json.get("mapping")
+        faker_mapping = json.loads(mapping) if isinstance(mapping, str) else mapping
+        return jsonify({"message": "Mapping stored", "faker_mapping": faker_mapping})
     except Exception as e:
-        return f"❌ Error parsing mapping: {e}"
-        
-@mcp.tool()
-def generate_mock_data(count: int = 10) -> str:
-    """
-    Generates mock data using the stored faker_field_map.
-    """
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/generate", methods=["GET"])
+def generate_mock_data():
     global mock_data
-    if not faker_field_map:
-        return "❌ No faker field mapping found. Run `identify_faker_fields` first."
+    try:
+        n = int(request.args.get("n", 10))
+        mock_data = []
+        for _ in range(n):
+            row = {}
+            for col, method in faker_mapping.items():
+                try:
+                    val = getattr(faker, method)() if hasattr(faker, method) else f"<invalid:{method}>"
+                    row[col] = val
+                except Exception:
+                    row[col] = "<error>"
+            mock_data.append(row)
+        return jsonify(mock_data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-    mock_data = []
-    for _ in range(count):
-        row = {}
-        for col, method in faker_field_map.items():
-            try:
-                row[col] = getattr(faker, method)() if hasattr(faker, method) else f"<{method}>"
-            except Exception:
-                row[col] = f"<invalid:{method}>"
-        mock_data.append(row)
-    return f"✅ Generated {count} rows of mock data."
+@app.route("/save", methods=["GET"])
+def save_to_csv():
+    global mock_data
+    try:
+        if not mock_data:
+            return jsonify({"error": "No data to save"}), 400
+        df = pd.DataFrame(mock_data)
+        df.to_csv("mock_output.csv", index=False)
+        return jsonify({"message": "Mock data saved to mock_output.csv"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(port=5000)
+
+
+################
+
+# main.py
+from mcp.server.fastmcp import FastMCP
+import httpx
+import json
+
+mcp = FastMCP("copilot-mockgen")
+
+API = "http://localhost:5000"
+
+async def post(endpoint, data=None):
+    async with httpx.AsyncClient() as client:
+        return await client.post(f"{API}{endpoint}", json=data or {})
+
+async def get(endpoint):
+    async with httpx.AsyncClient() as client:
+        return await client.get(f"{API}{endpoint}")
 
 @mcp.tool()
-def save_mock_data_to_csv(filename: str = "mock_output.csv") -> str:
-    """
-    Saves generated mock data to a CSV file.
-    """
-    if not mock_data:
-        return "❌ No mock data to save. Run `generate_mock_data` first."
+async def upload(layout: str, instructions: str) -> str:
+    """Upload layout and instructions."""
+    async with httpx.AsyncClient() as client:
+        res = await client.post(f"{API}/upload", data={"layout": layout, "instructions": instructions})
+        return res.text
 
-    with open(filename, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=mock_data[0].keys())
-        writer.writeheader()
-        writer.writerows(mock_data)
-    return f"✅ Mock data saved to {filename}."
+@mcp.tool()
+async def get_prompt() -> dict:
+    """Get prompt payload for Copilot."""
+    res = await get("/prompt_payload")
+    return res.json()
 
-# ---------------- Run Server ----------------
+@mcp.tool()
+async def store_mapping(mapping: str) -> str:
+    """Store Copilot-generated mapping JSON."""
+    try:
+        json.loads(mapping)  # validate first
+        res = await post("/store_mapping", {"mapping": mapping})
+        return res.text
+    except json.JSONDecodeError:
+        return "❌ Invalid JSON format."
+
+@mcp.tool()
+async def generate_mock(n: int = 10) -> list[dict]:
+    """Generate mock data."""
+    res = await get(f"/generate?n={n}")
+    return res.json()
+
+@mcp.tool()
+async def save_to_csv() -> str:
+    """Save generated mock data to CSV."""
+    res = await get("/save")
+    return res.text
+
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    mcp.run()
+
+
+##################
+Call get_prompt to get the prompt.
+Use it to generate a JSON mapping of column names to Faker methods.
+Then call store_mapping with that JSON.
+Then call generate_mock to generate mock data and finally call save_to_csv to store in a CSV file.
+
