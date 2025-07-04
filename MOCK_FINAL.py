@@ -50,17 +50,21 @@ Here are the rules:
 """
 
 @mcp.tool()
-def store_faker_mapping(mapping_json: str) -> str:
+def store_faker_mapping(mapping: Any) -> str:
     """
-    Stores the faker field mapping returned by Copilot into global memory.
+    Accepts either a JSON string or a dictionary from Copilot and stores it.
     """
     global faker_field_map
     try:
-        faker_field_map = json.loads(mapping_json)
-        return f"✅ Stored faker field mapping for {len(faker_field_map)} columns."
+        if isinstance(mapping, str):
+            mapping = json.loads(mapping)
+        elif not isinstance(mapping, dict):
+            return "❌ Please provide a valid dictionary or JSON string."
+        faker_field_map = mapping
+        return f"✅ Stored faker mapping for {len(faker_field_map)} columns."
     except Exception as e:
-        return f"❌ Error parsing mapping JSON: {e}"
-
+        return f"❌ Error parsing mapping: {e}"
+        
 @mcp.tool()
 def generate_mock_data(count: int = 10) -> str:
     """
