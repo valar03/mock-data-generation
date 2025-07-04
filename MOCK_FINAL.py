@@ -73,4 +73,4 @@ Return a list of dictionaries like:
 
 Don't leave return [] empty — return actual mock data using parsed schema.
 
-
+Please populate the generate_mock_data() function. It should read layout.csv for schema and generate 50 mock records using Faker. Return a list of dicts.
