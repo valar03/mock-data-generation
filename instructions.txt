@@ -1,0 +1,5 @@
+Generate 100 rows of mock data based on the layout.
+- Use the column names and data types as defined.
+- Maintain uniqueness for 'customer_id'.
+- Ensure the format matches the example values.
+- Save output as a CSV file.
